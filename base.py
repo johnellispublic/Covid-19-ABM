@@ -1,9 +1,14 @@
 import numpy as np
 import random
 
+NEIGHBOUR_RANGE = 5
+
+def randrange(hwidth, centre=0):
+    return (random.random()*2 - 1)*hwidth + centre
+
 class Vector2D(np.ndarray):
-    Xs = ['x','X']
-    Ys = ['y','Y']
+    Xs = ["x", "X"]
+    Ys = ["y", "Y"]
 
     def __new__(cls, x=0, y=0):
         return super().__new__(cls, (2,))
@@ -12,9 +17,8 @@ class Vector2D(np.ndarray):
         self[0] = x
         self[1] = y
 
-
     def __abs__(self):
-        return (self[0]**2 + self[1]**2)**0.5
+        return (self[0] ** 2 + self[1] ** 2) ** 0.5
 
     def __getattr__(self, attr):
         if attr in Vector2D.Xs:
@@ -32,26 +36,26 @@ class Vector2D(np.ndarray):
         else:
             super().__setattr__(attr, value)
 
+    def __repr__(self):
+        return f"Vector2D ({self[0]},{self[1]})"
+
+    def to_string(self, dp=10):
+        return f"({round(self[0],dp)},{round(self[1],dp)})"
+
 class Person:
     class Infection:
         pass
 
     def __init__(self, people, x, y):
-        self.pos = Vector2D(x,y)
-        self.infected = False
+        self.pos = Vector2D(x, y)
         self.infection = None
         self.people = people
 
     def distance(self, other):
-        return abs(self.pos - other.pos)
-
-    def get_neighbours(self):
-        neighbours = []
-        for person in self.people:
-            if self.distance(person) < 5 and self != person:
-                neighbours.append(person)
-
-        return neighbours
+        if isinstance(other, Person):
+            return abs(self.pos - other.pos)
+        elif isinstance(other, Vector2D):
+            return abs(self.pos - other)
 
     def move(self):
         pass
@@ -65,11 +69,36 @@ class Person:
             for person in self.get_neighbours():
                 self.infect(person)
 
+    def __repr__(self):
+        name = "Person"
+        if __name__ != "__main__":
+            name = __name__+"."+name
+
+        if self.infection is None:
+            return f"<{name} at {self.pos.to_string(3)}>"
+
+
 class People:
-    def __init__(self, person_count):
+    def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100, neighbour_range=NEIGHBOUR_RANGE):
+        self.NEIGHBOUR_RANGE = neighbour_range
+
+        self.hwidth = hwidth
+        self.hheight = hheight
+
+        self.person_type = person_type
+
         self.people = set()
         for person in range(person_count):
-            self.people.add(Person(self, random.random()*100, random.random()*100))
+            self.people.add(person_type(self, randrange(hwidth), randrange(hheight)))
 
     def __iter__(self):
         return iter(self.people)
+
+    def get_people_around(self, pos):
+        pass
+
+    def get_people_between(self, bl, tr):
+        pass
+
+
+ORIGIN_VECTOR = Vector2D(x=0, y=0)
