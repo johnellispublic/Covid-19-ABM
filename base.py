@@ -44,10 +44,39 @@ class Vector2D(np.ndarray):
     def to_string(self, dp=10):
         return f"({round(self[0],dp)},{round(self[1],dp)})"
 
-class Person:
-    class Infection:
-        pass
+class BaseInfection:
+    RECOVER_TIME = 15
+    ATTEMPTS_PER_TICK = 20
+    INFECT_SUCCESS_CHANCE = 0.5
 
+    global_R = {}
+
+    @classmethod
+    def get_R(cls):
+        total = 0
+        for i in cls.global_R:
+            total += cls.global_R[i]
+
+        return total / len(cls.global_R)
+
+    def __init__(self):
+        self.time_infected = 0
+        self.global_R[self] = 0
+
+    def __init_subclass__(cls):
+        cls.global_R = {}
+
+    def infect(self, person):
+        self.global_R[self] += 1
+        person.infect_with(type(self))
+
+    def __str__(self):
+        return type(self).__name__
+
+    def __repr__(self):
+        return super().__repr__()
+
+class Person:
     def __init__(self, people, x, y):
         self.pos = Vector2D(x, y)
         self.infection = None
@@ -65,6 +94,9 @@ class Person:
     def infect(self, other):
         pass
 
+    def infect_with(self, Infection):
+        self.infection = Infection()
+
     def update(self):
         self.move()
         if self.infected:
@@ -78,6 +110,8 @@ class Person:
 
         if self.infection is None:
             return f"<{name} at {self.pos.to_string(3)}>"
+        else:
+            return f"<{name} ({self.infection}) at {self.pos.to_string(3)}>"
 
 
 class BaseModel:
