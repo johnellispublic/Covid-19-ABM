@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import random
 
 NEIGHBOUR_RANGE = 5
@@ -78,7 +80,7 @@ class Person:
             return f"<{name} at {self.pos.to_string(3)}>"
 
 
-class People:
+class BaseModel:
     def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100, neighbour_range=NEIGHBOUR_RANGE):
         self.NEIGHBOUR_RANGE = neighbour_range
 
@@ -91,6 +93,8 @@ class People:
         for person in range(person_count):
             self.people.add(person_type(self, randrange(hwidth), randrange(hheight)))
 
+        self.init_display()
+
     def __iter__(self):
         return iter(self.people)
 
@@ -99,6 +103,37 @@ class People:
 
     def get_people_between(self, bl, tr):
         pass
+
+    def init_display(self):
+        fig, ax = plt.subplots()
+
+        self.fig = fig
+        self.ax = ax
+
+    def get_data(self, gran=NEIGHBOUR_RANGE):
+        x = np.arange(-self.hwidth,self.hwidth,gran)
+        y = np.arange(-self.hheight,self.hheight,gran)
+        Y, X = np.meshgrid(y, x)
+        person_count = np.zeros(Y.shape)
+        infected_count = np.zeros(Y.shape)
+
+        for person in self:
+            px = (person.pos.x+self.hwidth)//gran
+            py = (person.pos.y+self.hheight)//gran
+            person_count[int(px), int(py)] += 1
+
+            if person.infection is not None:
+                infected_count[int(px), int(py)] += 1
+
+        data = infected_count/person_count
+        data[(person_count==0)] = 0
+
+        return X, Y, data
+
+    def display(self):
+        X, Y, data = self.get_data(gran=self.NEIGHBOUR_RANGE)
+        plt.pcolormesh(X, Y, data, shading="auto")
+        plt.show()
 
 
 ORIGIN_VECTOR = Vector2D(x=0, y=0)

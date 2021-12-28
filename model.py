@@ -1,12 +1,12 @@
 import base
 
 
-class Model(base.People):
+class Model(base.BaseModel):
     def get_people_around(self, pos):
         people_around = set()
 
         for person in self:
-            if person.distance(pos) < base.NEIGHBOUR_RANGE:
+            if person.distance(pos) < self.NEIGHBOUR_RANGE:
                 people_around.add(person)
 
         return people_around
