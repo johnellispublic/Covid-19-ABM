@@ -8,6 +8,10 @@ NEIGHBOUR_RANGE = 5
 def randrange(hrange, centre=0):
     return (random.random()*2 - 1)*hrange + centre
 
+#Integer division but for floats as well
+def closest_mul(a, b):
+    return (a - a%b)/b
+
 class Vector2D(np.ndarray):
     Xs = ["x", "X"]
     Ys = ["y", "Y"]
@@ -47,7 +51,7 @@ class Vector2D(np.ndarray):
 class BaseInfection:
     RECOVER_TIME = 15
     RECOVER_STANDARD_DEV = 3.5
-    INFECT_SUCCESS_CHANCE = 0.5
+    INFECT_SUCCESS_CHANCE = 1
     DEIMUNISE_CHANCE = 0
 
     global_R = {}
@@ -132,7 +136,7 @@ class Person:
         for infection in self.infections_to_add:
             if isinstance(infection, Infection):
                 return
-        
+
         self.infections_to_add.add(Infection())
 
     def check_cures(self):
@@ -242,8 +246,12 @@ class BaseModel:
         infected_count = np.zeros(Y.shape)
 
         for person in self.people:
-            px = (person.pos.x+self.hwidth)//gran
-            py = (person.pos.y+self.hheight)//gran
+            px = (person.pos.x+self.hwidth)
+            py = (person.pos.y+self.hheight)
+
+            px = closest_mul(px, gran)
+            py = closest_mul(py, gran)
+
             person_count[int(px), int(py)] += 1
 
             if infection_type is None:
@@ -254,13 +262,13 @@ class BaseModel:
                         infected_count[int(px), int(py)] += 1
                         break
         data = infected_count/person_count
-        data[(person_count==0)] = 0
+        #data[(person_count==0)] = 0
 
         return X, Y, data
 
     def update_display(self):
         X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
-        data = data[:-1, :-1]
+        #data = data[:-1, :-1]
         self.heatmap.set_array(data.ravel())
         #self.r_plot
 
@@ -269,6 +277,7 @@ class BaseModel:
             anim = FuncAnimation(self.heatmap_fig, self.update, frames=update_num, interval=interval)
             plt.show()
         else:
-            self.update(i, display=False)
+            for i in range(update_num):
+                self.update(i, display=False)
 
 ORIGIN_VECTOR = Vector2D(x=0, y=0)
