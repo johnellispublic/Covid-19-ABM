@@ -128,6 +128,11 @@ class Person:
         for infection in self.imunisations:
             if isinstance(infection, Infection):
                 return
+
+        for infection in self.infections_to_add:
+            if isinstance(infection, Infection):
+                return
+        
         self.infections_to_add.add(Infection())
 
     def check_cures(self):
@@ -213,21 +218,21 @@ class BaseModel:
         for person in self.people:
             person.finalise_update()
 
-        return self.r_plot[0]
+        #return self.r_plot[0]
 
     def init_display(self):
         X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
 
         heatmap_fig, heatmap_ax = plt.subplots()
-        r_plot_fig, r_plot_ax = plt.subplots()
+        #r_plot_fig, r_plot_ax = plt.subplots()
 
         self.heatmap_fig = heatmap_fig
         self.heatmap_ax = heatmap_ax
         self.heatmap = heatmap_ax.pcolormesh(X, Y, data, shading="auto", vmin=0, vmax=1)
 
-        self.r_plot_fig = r_plot_fig
-        self.r_plot_ax = r_plot_ax
-        self.r_plot = r_plot_ax.plot([])
+        #self.r_plot_fig = r_plot_fig
+        #self.r_plot_ax = r_plot_ax
+        #self.r_plot = r_plot_ax.plot([])
 
     def get_heatmap_data(self, gran=NEIGHBOUR_RANGE, infection_type=None):
         x = np.arange(-self.hwidth,self.hwidth,gran)
