@@ -1,5 +1,7 @@
 import base
 
+class COVID(base.BaseInfection):
+    pass
 
 class Model(base.BaseModel):
     def get_people_around(self, pos):
