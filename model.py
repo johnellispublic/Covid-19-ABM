@@ -21,3 +21,17 @@ class Model(base.BaseModel):
                 people_between.add(person)
 
         return people_between
+
+    def infect_random_people(self, infection_type=COVID, p_num=1):
+        for _ in range(p_num):
+            person = self.get_random_person()
+            person.infect_with(infection_type)
+            person.finalise_update()
+
+def main():
+    m = Model(100,hwidth=20,hheight=20)
+    m.infect_random_people()
+    m.run(100)
+
+if __name__=="__main__":
+    main()

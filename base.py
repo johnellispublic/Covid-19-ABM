@@ -47,9 +47,8 @@ class Vector2D(np.ndarray):
 class BaseInfection:
     RECOVER_TIME = 15
     RECOVER_STANDARD_DEV = 3.5
-    ATTEMPTS_PER_TICK = 20
     INFECT_SUCCESS_CHANCE = 0.5
-    DEIMUNISE_CHANCE = 0.05
+    DEIMUNISE_CHANCE = 0
 
     global_R = {}
 
@@ -78,8 +77,9 @@ class BaseInfection:
         cls.global_R = {}
 
     def infect(self, person):
-        self.global_R[self] += 1
-        person.infect_with(type(self))
+        if random.random() < self.INFECT_SUCCESS_CHANCE:
+            self.global_R[self] += 1
+            person.infect_with(type(self))
 
     def __str__(self):
         return type(self).__name__
@@ -111,7 +111,7 @@ class Person:
         elif isinstance(other, Vector2D):
             return abs(self.pos - other)
         else:
-            return np.inf 
+            return np.inf
 
     def move(self):
         pass
@@ -122,6 +122,10 @@ class Person:
 
     def infect_with(self, Infection):
         for infection in self.infections:
+            if isinstance(infection, Infection):
+                return
+
+        for infection in self.imunisations:
             if isinstance(infection, Infection):
                 return
         self.infections_to_add.add(Infection())
@@ -152,6 +156,7 @@ class Person:
         self.infections = self.infections | self.infections_to_add
         self.cure(self.to_be_cured)
         self.move()
+        self.infections_to_add -= self.infections_to_add
 
     def get_neighbours(self):
         return self.model.get_people_around(self.pos)
@@ -198,8 +203,10 @@ class BaseModel:
     def get_people_between(self, bl, tr):
         pass
 
-    def update(self, t):
-        self.update_display()
+    def update(self, t, display=True):
+        if display:
+            self.update_display()
+
         for person in self.people:
             person.update()
 
@@ -209,7 +216,7 @@ class BaseModel:
         return self.r_plot[0]
 
     def init_display(self):
-        X, Y, data = self.get_heatmap_data(gran=self.NEIGHBOUR_RANGE)
+        X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
 
         heatmap_fig, heatmap_ax = plt.subplots()
         r_plot_fig, r_plot_ax = plt.subplots()
@@ -247,14 +254,16 @@ class BaseModel:
         return X, Y, data
 
     def update_display(self):
-        X, Y, data = self.get_heatmap_data(gran=self.NEIGHBOUR_RANGE)
+        X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
         data = data[:-1, :-1]
         self.heatmap.set_array(data.ravel())
         #self.r_plot
 
-    def run(self, update_num, interval=100):
-        anim = FuncAnimation(self.heatmap_fig, self.update, frames=update_num, interval=interval)
-        plt.show()
-
+    def run(self, update_num, interval=100, display=True):
+        if display:
+            anim = FuncAnimation(self.heatmap_fig, self.update, frames=update_num, interval=interval)
+            plt.show()
+        else:
+            self.update(i, display=False)
 
 ORIGIN_VECTOR = Vector2D(x=0, y=0)
