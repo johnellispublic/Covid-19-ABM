@@ -62,17 +62,26 @@ class BaseInfection:
         for i in cls.global_R:
             total += cls.global_R[i]
 
+        print(total)
+        if len(cls.global_R) == 0:
+            return 1
+
         return total / len(cls.global_R)
+
+    @classmethod
+    def update_cls(cls):
+        cls.global_R = {}
 
     def __init__(self):
         self.time_infected = 0
-        self.global_R[self] = 0
+        self.infected_count = 0
 
     def update(self):
         self.time_infected += 1
 
     def is_cured(self):
         if self.time_infected > random.gauss(self.RECOVER_TIME, self.RECOVER_STANDARD_DEV):
+            self.global_R[self] = self.infected_count
             return True
         else:
             return False
@@ -82,8 +91,9 @@ class BaseInfection:
 
     def infect(self, person):
         if random.random() < self.INFECT_SUCCESS_CHANCE:
-            self.global_R[self] += 1
-            person.infect_with(type(self))
+            success = person.infect_with(type(self))
+            if success:
+                self.infected_count += 1
 
     def __str__(self):
         return type(self).__name__
@@ -127,17 +137,19 @@ class Person:
     def infect_with(self, Infection):
         for infection in self.infections:
             if isinstance(infection, Infection):
-                return
+                return False
 
         for infection in self.imunisations:
             if isinstance(infection, Infection):
-                return
+                return False
 
         for infection in self.infections_to_add:
             if isinstance(infection, Infection):
-                return
+                return False
 
         self.infections_to_add.add(Infection())
+        self.model.person_infected(Infection)
+        return True
 
     def check_cures(self):
         to_be_cured = set()
@@ -150,6 +162,7 @@ class Person:
     def cure(self, to_be_cured):
         self.infections -= to_be_cured
         self.imunisations = self.imunisations | to_be_cured
+        self.model.person_cured(to_be_cured)
 
     def update(self):
         if len(self.infections) > 0:
@@ -185,8 +198,18 @@ class Person:
 
 
 class BaseModel:
-    def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100, neighbour_range=NEIGHBOUR_RANGE):
+    class Data:
+        def __init__(self, t=0):
+            self.r_value = [0]*(t+1)
+            self.infected_count = [0]*(t+1)
+
+        def add_new_row(self):
+            self.r_value.append(0)
+            self.infected_count.append(self.infected_count[-1])
+
+    def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100, neighbour_range=NEIGHBOUR_RANGE, gran=NEIGHBOUR_RANGE):
         self.NEIGHBOUR_RANGE = neighbour_range
+        self.gran = gran
 
         self.hwidth = hwidth
         self.hheight = hheight
@@ -200,8 +223,15 @@ class BaseModel:
 
         self.init_display()
 
+        self.data = {}
+        self.t = 0
+        self.register_infection("All")
+
     def __iter__(self):
         return iter(self.people)
+
+    def register_infection(self, infection):
+        self.data[infection] = self.Data(self.t)
 
     def get_random_person(self):
         return random.choice(self.people)
@@ -212,7 +242,33 @@ class BaseModel:
     def get_people_between(self, bl, tr):
         pass
 
+    def person_infected(self, infection):
+        if isinstance(infection, BaseInfection):
+            infection_type = type(infection)
+        else:
+            infection_type = infection
+        if infection_type not in self.data:
+            self.register_infection(infection_type)
+
+        self.data["All"].infected_count[-1] += 1
+        self.data[infection_type].infected_count[-1] += 1
+
+
+    def person_cured(self, infections):
+        for infection in infections:
+            if isinstance(infection, BaseInfection):
+                infection_type = type(infection)
+            else:
+                infection_type = infection
+            self.data["All"].infected_count[-1] -= 1
+            self.data[infection_type].infected_count[-1] -= 1
+
     def update(self, t, display=True):
+        for infection in self.data:
+            self.data[infection].add_new_row()
+            if isinstance(infection, type) and issubclass(infection, BaseInfection):
+                infection.update_cls()
+
         if display:
             self.update_display()
 
@@ -222,10 +278,15 @@ class BaseModel:
         for person in self.people:
             person.finalise_update()
 
+        for infection in self.data:
+            if infection != 'All':
+                self.data[infection].r_value[-1] = infection.get_R()
+
+        self.t += 1
         #return self.r_plot[0]
 
     def init_display(self):
-        X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
+        X, Y, data = self.get_heatmap_data(gran=self.gran)#self.NEIGHBOUR_RANGE)
 
         heatmap_fig, heatmap_ax = plt.subplots()
         #r_plot_fig, r_plot_ax = plt.subplots()
@@ -262,20 +323,19 @@ class BaseModel:
                         infected_count[int(px), int(py)] += 1
                         break
         data = infected_count/person_count
-        #data[(person_count==0)] = 0
 
         return X, Y, data
 
     def update_display(self):
-        X, Y, data = self.get_heatmap_data(gran=1)#self.NEIGHBOUR_RANGE)
-        #data = data[:-1, :-1]
+        X, Y, data = self.get_heatmap_data(gran=self.gran)
         self.heatmap.set_array(data.ravel())
         #self.r_plot
 
-    def run(self, update_num, interval=100, display=True):
+    def run(self, update_num, interval=100, display=True, record=False):
         if display:
             anim = FuncAnimation(self.heatmap_fig, self.update, frames=update_num, interval=interval)
-            plt.show()
+            if not record:
+                plt.show()
         else:
             for i in range(update_num):
                 self.update(i, display=False)
