@@ -3,8 +3,8 @@ import base
 class COVID(base.BaseInfection):
     RECOVER_TIME = 15
     RECOVER_STANDARD_DEV = 3.5
-    INFECT_SUCCESS_CHANCE = 0.1
-    DEIMUNISE_CHANCE = 0
+    INFECT_SUCCESS_CHANCE = 0.03
+    DEIMUNISE_CHANCE = 0.01
 
 class Model(base.BaseModel):
     def get_people_around(self, pos):
@@ -32,7 +32,7 @@ class Model(base.BaseModel):
             person.finalise_update()
 
 def main():
-    m = Model(400,hwidth=10,hheight=10)
+    m = Model(400,hwidth=20,hheight=20, gran=1)
     m.infect_random_people()
     m.run(100)
 
