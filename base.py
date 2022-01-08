@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation, FFMpegWriter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.patches as mpatches
+import datetime
 import random
 
 NEIGHBOUR_RANGE = 5
@@ -62,7 +65,6 @@ class BaseInfection:
         for i in cls.global_R:
             total += cls.global_R[i]
 
-        print(total)
         if len(cls.global_R) == 0:
             return 1
 
@@ -102,13 +104,22 @@ class BaseInfection:
         return super().__repr__()
 
 class Imunisations(set):
+    def __init__(self):
+        self.imunisations_set = set()
+
     def check_deimunises(self):
         infections_to_remove = set()
-        for infection in self:
+        for infection in self.imunisations_set:
             if random.random() < infection.DEIMUNISE_CHANCE:
                 infections_to_remove.add(infection)
 
-        self -= infections_to_remove
+        self.imunisations_set -= infections_to_remove
+
+    def add_infections(self, infections):
+        self.imunisations_set = self.imunisations_set.union(infections)
+
+    def __iter__(self):
+        return iter(self.imunisations_set)
 
 class Person:
     def __init__(self, model, x, y):
@@ -161,7 +172,7 @@ class Person:
 
     def cure(self, to_be_cured):
         self.infections -= to_be_cured
-        self.imunisations = self.imunisations | to_be_cured
+        self.imunisations.add_infections(to_be_cured)
         self.model.person_cured(to_be_cured)
 
     def update(self):
@@ -177,6 +188,7 @@ class Person:
     def finalise_update(self):
         self.infections = self.infections | self.infections_to_add
         self.cure(self.to_be_cured)
+        self.imunisations.check_deimunises()
         self.move()
         self.infections_to_add -= self.infections_to_add
 
@@ -198,16 +210,20 @@ class Person:
 
 
 class BaseModel:
+    VERSION = "0.0"
     class Data:
         def __init__(self, t=0):
-            self.r_value = [0]*(t+1)
+            self.r_value = [1]*(t+1)
+            self.smoothed_r = [1]*(t+1)
             self.infected_count = [0]*(t+1)
 
         def add_new_row(self):
             self.r_value.append(0)
+            self.smoothed_r.append(sum(self.r_value[-6:])/6)
             self.infected_count.append(self.infected_count[-1])
 
-    def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100, neighbour_range=NEIGHBOUR_RANGE, gran=NEIGHBOUR_RANGE):
+    def __init__(self, person_count, person_type=Person, hwidth=100, hheight=100,
+        neighbour_range=NEIGHBOUR_RANGE, gran=NEIGHBOUR_RANGE, max_ipp=1, display=True):
         self.NEIGHBOUR_RANGE = neighbour_range
         self.gran = gran
 
@@ -217,11 +233,16 @@ class BaseModel:
         self.person_type = person_type
 
         self.people = np.ndarray(person_count,dtype=person_type)
+        self.max_r = 2
+        self.max_infected_count = 1
+        self.max_ipp = max_ipp
+        self.display = display
 
         for person in range(person_count):
             self.people[person] = person_type(self, randrange(hwidth), randrange(hheight))
 
-        self.init_display()
+        if self.display:
+            self.init_display()
 
         self.data = {}
         self.t = 0
@@ -232,6 +253,9 @@ class BaseModel:
 
     def register_infection(self, infection):
         self.data[infection] = self.Data(self.t)
+        if self.display:
+            self.r_plot[infection] = self.r_plot_ax.plot([0]*self.t)[0]
+            self.infect_plot[infection] = self.infect_plot_ax.plot([0]*self.t)[0]
 
     def get_random_person(self):
         return random.choice(self.people)
@@ -252,6 +276,8 @@ class BaseModel:
 
         self.data["All"].infected_count[-1] += 1
         self.data[infection_type].infected_count[-1] += 1
+        if self.data['All'].infected_count[-1] > self.max_infected_count:
+            self.max_infected_count = self.data['All'].infected_count[-1]
 
 
     def person_cured(self, infections):
@@ -281,23 +307,44 @@ class BaseModel:
         for infection in self.data:
             if infection != 'All':
                 self.data[infection].r_value[-1] = infection.get_R()
+                self.data[infection].smoothed_r[-1] += self.data[infection].r_value[-1]/6
+                if self.data[infection].smoothed_r[-1] > self.max_r:
+                    self.max_r = self.data[infection].smoothed_r[-1]
 
         self.t += 1
-        #return self.r_plot[0]
+        return list(self.r_plot.values()) + list(self.infect_plot.values())
 
     def init_display(self):
         X, Y, data = self.get_heatmap_data(gran=self.gran)#self.NEIGHBOUR_RANGE)
 
-        heatmap_fig, heatmap_ax = plt.subplots()
+        self.fig, self.ax = plt.subplots()
         #r_plot_fig, r_plot_ax = plt.subplots()
 
-        self.heatmap_fig = heatmap_fig
-        self.heatmap_ax = heatmap_ax
-        self.heatmap = heatmap_ax.pcolormesh(X, Y, data, shading="auto", vmin=0, vmax=1)
+        self.heatmap_ax = plt.subplot(221)
+        self.heatmap = self.heatmap_ax.pcolormesh(X, Y, data, shading="auto", vmin=0, vmax=self.max_ipp, cmap="viridis")
+        divider = make_axes_locatable(self.heatmap_ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        self.heatmap_cb = plt.colorbar(self.heatmap, cax=cax, ticks=range(0,int(self.max_ipp)+1))
+        self.heatmap_cb.ax.set_yticklabels([str(i) for i in range(0,int(self.max_ipp)+1)])
+        self.heatmap_cb.set_label("Infections Per Persion (ipp)")
 
-        #self.r_plot_fig = r_plot_fig
-        #self.r_plot_ax = r_plot_ax
-        #self.r_plot = r_plot_ax.plot([])
+        self.heatmap_ax.set_title("Heatmap of Infection in the Population")
+
+        self.r_plot_ax = plt.subplot(222)
+        self.r_plot = {}
+        self.r_plot_ax.set_title("R Value")
+        self.r_plot_ax.set_xlabel("Time/days")
+        self.r_plot_ax.set_ylabel("R")
+
+        self.infect_plot_ax = plt.subplot(223)
+        self.infect_plot = {'All':self.infect_plot_ax.plot([])[0]}
+        self.infect_plot_ax.set_title("Number of People Infected")
+        self.infect_plot_ax.set_xlabel("Time/days")
+        self.infect_plot_ax.set_ylabel("Number Infected")
+
+        self.r_plot_ax.axhline(y=1, zorder=np.inf)
+
+        plt.tight_layout()
 
     def get_heatmap_data(self, gran=NEIGHBOUR_RANGE, infection_type=None):
         x = np.arange(-self.hwidth,self.hwidth,gran)
@@ -323,19 +370,36 @@ class BaseModel:
                         infected_count[int(px), int(py)] += 1
                         break
         data = infected_count/person_count
-
         return X, Y, data
 
     def update_display(self):
         X, Y, data = self.get_heatmap_data(gran=self.gran)
         self.heatmap.set_array(data.ravel())
-        #self.r_plot
 
-    def run(self, update_num, interval=100, display=True, record=False):
-        if display:
-            anim = FuncAnimation(self.heatmap_fig, self.update, frames=update_num, interval=interval)
+
+        self.r_plot_ax.set_xlim(0, self.t)
+        self.r_plot_ax.set_ylim(0, self.max_r)
+
+        self.infect_plot_ax.set_xlim(0, self.t)
+        self.infect_plot_ax.set_ylim(0, self.max_infected_count)
+
+        for infection in self.data:
+            if infection != 'All':
+                self.r_plot[infection].set_data(np.arange(self.t+2),self.data[infection].smoothed_r)
+
+            self.infect_plot[infection].set_data(np.arange(self.t+2),self.data[infection].infected_count)
+
+    def run(self, update_num, interval=100, record=False):
+        if self.display:
+            anim = FuncAnimation(self.fig, self.update, frames=update_num, interval=interval)
             if not record:
                 plt.show()
+            else:
+                date = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                filename = f"\
+videos/{date}-{__name__}-{self.VERSION}-{len(self.people)}-{2*self.hwidth}x{2*self.hheight}-{random.randint(0,1000000)}.mp4"
+                writer = FFMpegWriter(fps=1000/interval)
+                anim.save(filename, writer=writer)
         else:
             for i in range(update_num):
                 self.update(i, display=False)
