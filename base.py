@@ -312,7 +312,8 @@ class BaseModel:
                     self.max_r = self.data[infection].smoothed_r[-1]
 
         self.t += 1
-        return list(self.r_plot.values()) + list(self.infect_plot.values())
+        if self.display:
+            return list(self.r_plot.values()) + list(self.infect_plot.values())
 
     def init_display(self):
         X, Y, data = self.get_heatmap_data(gran=self.gran)#self.NEIGHBOUR_RANGE)
