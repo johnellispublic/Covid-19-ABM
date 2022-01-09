@@ -290,6 +290,7 @@ class BaseModel:
             self.data[infection_type].infected_count[-1] -= 1
 
     def update(self, t, display=True):
+        print(t)
         for infection in self.data:
             self.data[infection].add_new_row()
             if isinstance(infection, type) and issubclass(infection, BaseInfection):
@@ -326,8 +327,8 @@ class BaseModel:
         divider = make_axes_locatable(self.heatmap_ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         self.heatmap_cb = plt.colorbar(self.heatmap, cax=cax, ticks=range(0,int(self.max_ipp)+1))
-        self.heatmap_cb.ax.set_yticklabels([str(i) for i in range(0,int(self.max_ipp)+1)])
-        self.heatmap_cb.set_label("Infections Per Persion (ipp)")
+        self.heatmap_cb.ax.set_yticklabels([f"{i*100}%" for i in range(0,int(self.max_ipp)+1)])
+        self.heatmap_cb.set_label("Proportion of people infected")
 
         self.heatmap_ax.set_title("Heatmap of Infection in the Population")
 
