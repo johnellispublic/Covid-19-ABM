@@ -4,10 +4,10 @@ class COVID(base.BaseInfection):
     RECOVER_TIME = 15
     RECOVER_STANDARD_DEV = 3.5
     INFECT_SUCCESS_CHANCE = 0.03
-    DEIMUNISE_CHANCE = 0.01
+    DEIMUNISE_CHANCE = 0.1
 
 class Model(base.BaseModel):
-    VERSION = "1.0.2"
+    VERSION = "1.0.3"
     def get_people_around(self, pos):
         people_around = set()
 
