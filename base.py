@@ -290,7 +290,6 @@ class BaseModel:
             self.data[infection_type].infected_count[-1] -= 1
 
     def update(self, t, display=True):
-        print(t)
         for infection in self.data:
             self.data[infection].add_new_row()
             if isinstance(infection, type) and issubclass(infection, BaseInfection):
