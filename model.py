@@ -35,7 +35,7 @@ class Model(base.BaseModel):
 def main():
     m = Model(400,hwidth=20,hheight=20, gran=1)
     m.infect_random_people()
-    m.run(1000, record=True)
+    m.run(1000, record=False)
 
 if __name__=="__main__":
     main()
